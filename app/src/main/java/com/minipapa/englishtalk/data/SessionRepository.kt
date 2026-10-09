@@ -9,8 +9,12 @@ class SessionCredentials(
     val clientSecret: String,
     val expiresAt: Long,
     val remainingSecondsAtReceipt: Long,
-    val model: String
+    val model: String,
+    private val receivedAtNanos: Long = System.nanoTime()
 ) {
+    fun remainingValiditySeconds(nowNanos: Long = System.nanoTime()): Long =
+        remainingSecondsAtReceipt - ((nowNanos - receivedAtNanos).coerceAtLeast(0) / 1_000_000_000)
+
     override fun toString(): String = "SessionCredentials([REDACTED])"
 }
 

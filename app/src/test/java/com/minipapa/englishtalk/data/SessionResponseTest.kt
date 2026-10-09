@@ -21,4 +21,10 @@ class SessionResponseTest {
 
     @Test(expected = SessionCreationException::class)
     fun rejectsMissingCredential() { parseSessionResponse(mapOf("expiresAt" to 1060), 0) }
+
+    @Test fun credentialExpiresWhilePreparingWebRtc() {
+        val credential = SessionCredentials("test-only", 1060, 58, "gpt-realtime", receivedAtNanos = 1_000_000_000)
+        assertEquals(8, credential.remainingValiditySeconds(nowNanos = 51_000_000_000))
+        assertEquals(0, credential.remainingValiditySeconds(nowNanos = 59_000_000_000))
+    }
 }

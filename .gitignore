@@ -14,6 +14,7 @@ ui-debug.log*
 .firebase/
 emulator-test-output.log
 android-stage2-build.log
+android-stage3-build.log
 *-deploy.log
 app/google-services.json
 *service-account*.json

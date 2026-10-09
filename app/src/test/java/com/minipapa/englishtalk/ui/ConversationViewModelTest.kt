@@ -11,16 +11,33 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import com.minipapa.englishtalk.data.SessionCredentials
+import com.minipapa.englishtalk.data.SessionRepository
+import com.minipapa.englishtalk.voice.VoiceClient
+import com.minipapa.englishtalk.voice.VoiceEvent
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConversationViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+    private fun model(): ConversationViewModel = ConversationViewModel(
+        object : SessionRepository {
+            override suspend fun createSession() = SessionCredentials("test-only", 1060, 58, "gpt-realtime")
+        },
+        object : VoiceClient {
+            override suspend fun connect(credentials: SessionCredentials, onEvent: (VoiceEvent) -> Unit) {
+                delay(1000)
+                onEvent(VoiceEvent.Connected)
+            }
+            override fun close() = Unit
+        }
+    )
 
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
 
     @Test fun startThenConnect() = runTest(dispatcher) {
-        val model = ConversationViewModel()
+        val model = model()
         assertEquals(ConversationStatus.DISCONNECTED, model.uiState.value.status)
         model.startConversation()
         assertEquals(ConversationStatus.CONNECTING, model.uiState.value.status)
@@ -29,7 +46,7 @@ class ConversationViewModelTest {
     }
 
     @Test fun endingDuringConnectionCancelsPendingTransition() = runTest(dispatcher) {
-        val model = ConversationViewModel()
+        val model = model()
         model.startConversation()
         model.endConversation()
         advanceUntilIdle()
@@ -42,7 +59,7 @@ class ConversationViewModelTest {
     }
 
     @Test fun permissionDenialCanRecover() = runTest(dispatcher) {
-        val model = ConversationViewModel()
+        val model = model()
         model.onMicrophonePermissionDenied()
         assertEquals(ConversationStatus.ERROR, model.uiState.value.status)
         model.startConversation()

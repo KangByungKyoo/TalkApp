@@ -16,7 +16,7 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
     Scaffold(
         bottomBar = {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onStart, enabled = !state.isActive, modifier = Modifier.fillMaxWidth()) { Text("대화 시작") }
+                Button(onClick = onStart, enabled = !state.isActive && state.serverTestStatus != ServerTestStatus.LOADING, modifier = Modifier.fillMaxWidth()) { Text("대화 시작") }
                 OutlinedButton(onClick = onEnd, enabled = state.isActive, modifier = Modifier.fillMaxWidth()) { Text("대화 종료") }
             }
         }
@@ -38,8 +38,8 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
                     Text(
                         state.errorMessage ?: when (state.status) {
                             ConversationStatus.DISCONNECTED -> "시작 버튼을 눌러 Emma와 영어 회화를 연습해 보세요."
-                            ConversationStatus.CONNECTING -> "대화를 준비하고 있어요."
-                            ConversationStatus.TALKING -> "Emma와의 대화 화면입니다."
+                            ConversationStatus.CONNECTING -> "인증 및 음성 연결을 준비하고 있어요."
+                            ConversationStatus.TALKING -> state.voiceActivity.label
                             ConversationStatus.ENDED -> "대화가 종료되었습니다. 다시 시작할 수 있어요."
                             ConversationStatus.ERROR -> "대화를 시작할 수 없습니다."
                         },
@@ -49,7 +49,7 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
                 }
             }
             Spacer(Modifier.height(20.dp))
-            Text("대화 시작·종료는 화면 데모입니다. 실제 음성 연결은 다음 단계에서 제공됩니다.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+            Text("대화 중 마이크 음성이 OpenAI로 전송되고 Emma의 음성이 스피커로 재생됩니다. 앱을 벗어나면 대화가 종료됩니다.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
@@ -59,7 +59,7 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
                 color = if (state.serverTestStatus == ServerTestStatus.ERROR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(12.dp))
             if (state.serverTestStatus == ServerTestStatus.LOADING) CircularProgressIndicator()
-            OutlinedButton(onClick = onTestServer, enabled = state.serverTestStatus != ServerTestStatus.LOADING) {
+            OutlinedButton(onClick = onTestServer, enabled = !state.isActive && state.serverTestStatus != ServerTestStatus.LOADING) {
                 Text("서버 연결 테스트")
             }
             Spacer(Modifier.weight(1f))
