@@ -15,6 +15,9 @@ ui-debug.log*
 emulator-test-output.log
 android-stage2-build.log
 android-stage3-build.log
+android-characters-build.log
+characters-device-test.log
+.qa/
 *-deploy.log
 app/google-services.json
 *service-account*.json

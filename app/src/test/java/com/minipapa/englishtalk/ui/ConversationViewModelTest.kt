@@ -25,11 +25,12 @@ class ConversationViewModelTest {
             override suspend fun createSession() = SessionCredentials("test-only", 1060, 58, "gpt-realtime")
         },
         object : VoiceClient {
-            override suspend fun connect(credentials: SessionCredentials, onEvent: (VoiceEvent) -> Unit) {
+            override suspend fun connect(credentials: SessionCredentials, settings: com.minipapa.englishtalk.settings.ConversationSettings, onEvent: (VoiceEvent) -> Unit) {
                 delay(1000)
                 onEvent(VoiceEvent.Connected)
             }
             override fun close() = Unit
+            override fun updateSettings(settings: com.minipapa.englishtalk.settings.ConversationSettings) = true
         }
     )
 

@@ -17,11 +17,12 @@ class VoiceConversationTest {
         var callback: ((VoiceEvent) -> Unit)? = null
         var closes = 0
         var waitForever = false
-        override suspend fun connect(credentials: SessionCredentials, onEvent: (VoiceEvent) -> Unit) {
+        override suspend fun connect(credentials: SessionCredentials, settings: com.minipapa.englishtalk.settings.ConversationSettings, onEvent: (VoiceEvent) -> Unit) {
             callback = onEvent
             if (waitForever) awaitCancellation()
         }
         override fun close() { closes++ }
+        override fun updateSettings(settings: com.minipapa.englishtalk.settings.ConversationSettings) = true
     }
     private fun repository() = object : SessionRepository {
         override suspend fun createSession() = SessionCredentials("test-only", 1060, 58, "gpt-realtime")

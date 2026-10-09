@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.minipapa.englishtalk.data.SessionCredentials
+import com.minipapa.englishtalk.settings.ConversationSettings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
@@ -32,11 +33,15 @@ class WebRtcVoiceClient(context: Context) : VoiceClient {
     private var connected = false
     private var started = false
     private var listener: ((VoiceEvent) -> Unit)? = null
+    private var settingsCoordinator: SessionSettingsCoordinator? = null
+    private var settingsWatchdog: Runnable? = null
+    private var settingsRevision = 0
 
-    override suspend fun connect(credentials: SessionCredentials, onEvent: (VoiceEvent) -> Unit) {
+    override suspend fun connect(credentials: SessionCredentials, settings: ConversationSettings, onEvent: (VoiceEvent) -> Unit) {
         close()
         val id = generation
         listener = onEvent
+        settingsCoordinator = SessionSettingsCoordinator(settings)
         ready = CompletableDeferred()
         gathered = CompletableDeferred()
         try {
@@ -132,7 +137,11 @@ class WebRtcVoiceClient(context: Context) : VoiceClient {
                 buffer.data.duplicate().get(bytes)
                 val event = RealtimeEvents.parse(bytes.toString(Charsets.UTF_8)) ?: return
                 post(id) {
-                    if (event is VoiceEvent.Error) fail(event.message) else if (started) listener?.invoke(event)
+                    when (event) {
+                        is VoiceEvent.SessionConfiguration -> onConfigurationAcknowledged(event)
+                        is VoiceEvent.Error -> fail(event.message)
+                        else -> if (started) listener?.invoke(event)
+                    }
                 }
             }
         })
@@ -140,14 +149,56 @@ class WebRtcVoiceClient(context: Context) : VoiceClient {
 
     private fun maybeReady() {
         if (started || !connected || channel?.state() != DataChannel.State.OPEN) return
-        if (!send(RealtimeEvents.configuration()) || !send(RealtimeEvents.greeting())) {
-            fail("AI 대화를 시작할 수 없습니다.")
+        sendPendingSettings()
+    }
+
+    override fun updateSettings(settings: ConversationSettings): Boolean {
+        val coordinator = settingsCoordinator ?: return true // Authentication may still be in progress.
+        if (settings.character != coordinator.desired.character) return false
+        coordinator.select(settings)
+        if (connected && channel?.state() == DataChannel.State.OPEN) sendPendingSettings()
+        return true
+    }
+
+    private fun sendPendingSettings() {
+        val coordinator = settingsCoordinator ?: return
+        val settings = coordinator.nextUpdate() ?: return
+        microphone?.setEnabled(false)
+        if (started) {
+            // Stop the previous turn so its old instructions cannot produce another answer.
+            val revision = ++settingsRevision
+            if (!send(RealtimeEvents.control("response.cancel", "settings-cancel-$revision")) ||
+                !send(RealtimeEvents.control("output_audio_buffer.clear", "settings-clear-$revision")) ||
+                !send(RealtimeEvents.control("input_audio_buffer.clear", "settings-input-$revision"))) {
+                fail("이전 답변을 정리할 수 없습니다. 다시 시작해 주세요.")
+                return
+            }
+        }
+        if (!send(RealtimeEvents.configuration(settings, includeVoice = !started))) {
+            fail("대화 설정을 적용할 수 없습니다. 다시 시작해 주세요.")
             return
         }
-        started = true
+        settingsWatchdog?.let(main::removeCallbacks)
+        val id = generation
+        settingsWatchdog = Runnable { if (id == generation) fail("대화 설정 적용 시간이 초과되었습니다. 다시 시작해 주세요.") }
+            .also { main.postDelayed(it, 10_000) }
+    }
+
+    private fun onConfigurationAcknowledged(event: VoiceEvent.SessionConfiguration) {
+        val applied = settingsCoordinator?.acknowledge(event.instructions, event.voiceId) ?: return
+        settingsWatchdog?.let(main::removeCallbacks)
+        settingsWatchdog = null
+        listener?.invoke(VoiceEvent.SettingsApplied(applied))
+        if (!started) {
+            if (!send(RealtimeEvents.greeting(applied))) {
+                fail("AI 대화를 시작할 수 없습니다.")
+                return
+            }
+            started = true
+            listener?.invoke(VoiceEvent.Connected)
+            ready?.complete(Unit)
+        } else listener?.invoke(VoiceEvent.Listening)
         microphone?.setEnabled(true)
-        listener?.invoke(VoiceEvent.Connected)
-        ready?.complete(Unit)
     }
 
     private fun send(event: String): Boolean = channel?.send(
@@ -188,6 +239,10 @@ class WebRtcVoiceClient(context: Context) : VoiceClient {
         listener = null
         started = false
         connected = false
+        settingsCoordinator = null
+        settingsWatchdog?.let(main::removeCallbacks)
+        settingsWatchdog = null
+        settingsRevision = 0
         ready?.cancel(); ready = null
         gathered?.cancel(); gathered = null
         exchange?.cancel(); exchange = null

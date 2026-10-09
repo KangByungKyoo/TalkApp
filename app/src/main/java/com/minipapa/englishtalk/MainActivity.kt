@@ -48,7 +48,8 @@ class MainActivity : ComponentActivity() {
                     } else {
                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
-                }, onEnd = model::endConversation, onTestServer = model::testServerConnection)
+                }, onEnd = model::endConversation, onTestServer = model::testServerConnection,
+                    onCharacter = model::selectCharacter, onLength = model::selectResponseLength)
             }
         }
     }
