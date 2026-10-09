@@ -4,3 +4,16 @@
 **/build/
 local.properties
 *.iml
+node_modules/
+functions/lib/
+functions/.env*
+functions/.secret.local
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+.firebase/
+emulator-test-output.log
+android-stage2-build.log
+*-deploy.log
+app/google-services.json
+*service-account*.json

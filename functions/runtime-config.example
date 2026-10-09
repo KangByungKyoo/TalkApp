@@ -1,0 +1,4 @@
+# Copy to .env.englishtalk-ceccf after registering the Firebase Android app.
+# These values are NOT OpenAI credentials.
+ALLOWED_ANDROID_APP_ID=REPLACE_WITH_FIREBASE_ANDROID_APP_ID
+OPENAI_REALTIME_MODEL=gpt-realtime

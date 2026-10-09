@@ -1,4 +1,51 @@
-# EnglishTalk — 1단계
+# EnglishTalk — 2단계
+
+Firebase 기반 OpenAI Realtime 임시 인증 발급을 추가했습니다.
+실제 음성/WebRTC 연결은 다음 단계입니다.
+
+- Firebase 프로젝트: `englishtalk-ceccf`
+- 서버: Functions 2세대 / Node.js 22 / TypeScript
+- 함수: `createRealtimeSession`, 리전 `asia-northeast3`
+- 앱: 익명 로그인과 App Check를 사용한 `서버 연결 테스트`, 성공/실패 별도 표시
+- 보안: Secret Manager 키 바인딩, App Check 재사용 방지, UID별·전체 발급 제한
+
+설정 파일이 없어도 빌드는 가능하지만 서버 테스트는 Firebase 설정 오류를 표시합니다.
+**실제 연결에는 Android 앱 등록, google-services.json, 콘솔 설정, Secret 등록 및 배포가 필요합니다.**
+이후 사용자와 함께 콘솔 설정·Secret 등록·함수 배포를 완료했고, 앱에서 실제 인증 성공을 확인했습니다.
+
+[Firebase 설정·인증 방식 비교·API 키 저장·배포·테스트 상세](docs/FIREBASE_SETUP.md)
+
+## 2단계 주요 파일
+
+- `EnglishTalkApplication.kt`: Firebase 초기화 및 App Check 설치
+- `data/FirebaseSessionRepository.kt`: 익명 로그인, 제한 사용 App Check callable 호출
+- `data/SessionRepository.kt`: 인증 계약과 만료 검증, 토큰 로그 출력 방지
+- `src/debug/.../AppCheckInstaller.kt`: 개발용 Debug App Check
+- `src/release/.../AppCheckInstaller.kt`: 출시용 Play Integrity
+- `functions/src/index.ts`: Secret 바인딩, Auth/App Check 강제, callable 엔드포인트
+- `functions/src/session.ts`: OpenAI 임시 인증 요청과 안전한 오류 변환
+- `functions/src/rateLimit.ts`: Firestore 트랜잭션을 사용하는 발급 한도
+- `firebase.json`, `.firebaserc`, `firestore.rules`: 프로젝트·배포·에뮬레이터·DB 접근 설정
+- `functions/runtime-config.example`: 비밀 키를 제외한 서버 설정 예시
+- UI/상태/ViewModel/Manifest/Gradle: 서버 인증 테스트 UI와 Firebase SDK 추가
+- `SessionResponseTest`, `ServerConnectionTest`, `functions/test/`: 인증·만료·보안·동시 제한 검증
+
+Android main 소스 기준 경로는 `app/src/main/java/com/minipapa/englishtalk/`입니다.
+`google-services.json`, Secret/환경 변수 파일 및 빌드 결과는 Git에서 제외합니다.
+서버 테스트 성공 후 임시 토큰을 UI나 디스크에 보관하지 않습니다.
+
+```powershell
+.\gradlew.bat assembleDebug testDebugUnitTest lintDebug assembleRelease
+npm.cmd --prefix functions ci
+npm.cmd --prefix functions test
+```
+
+검증 결과와 미검증 항목은 [2단계 검증 기록](docs/STAGE2_VALIDATION.md)에 정리합니다.
+이번 구현은 2단계까지입니다.
+
+## 1단계 기록
+
+아래 내용은 1단계 완료 당시의 기록입니다. 현재 Firebase 구현과 설정은 위 내용을 따릅니다.
 
 Kotlin / Jetpack Compose 영어 회화 앱의 기본 프로젝트입니다.
 패키지는 `com.minipapa.englishtalk`, minSdk는 26, compileSdk/targetSdk는 36입니다.

@@ -12,7 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: () -> Unit) {
+fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: () -> Unit, onTestServer: () -> Unit = {}) {
     Scaffold(
         bottomBar = {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -49,7 +49,19 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
                 }
             }
             Spacer(Modifier.height(20.dp))
-            Text("1단계 데모 · 실제 음성 녹음 및 AI 연결은 아직 제공되지 않습니다.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+            Text("대화 시작·종료는 화면 데모입니다. 실제 음성 연결은 다음 단계에서 제공됩니다.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+            Text("서버 인증 테스트", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Text(state.serverTestMessage, textAlign = TextAlign.Center,
+                color = if (state.serverTestStatus == ServerTestStatus.ERROR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+            Spacer(Modifier.height(12.dp))
+            if (state.serverTestStatus == ServerTestStatus.LOADING) CircularProgressIndicator()
+            OutlinedButton(onClick = onTestServer, enabled = state.serverTestStatus != ServerTestStatus.LOADING) {
+                Text("서버 연결 테스트")
+            }
             Spacer(Modifier.weight(1f))
         }
         }
