@@ -64,6 +64,8 @@ DataStore의 `conversation_settings`에 `character_id`, `response_length`를 저
 서버의 기본 Emma/marin 설정은 첫 응답 전에 클라이언트의 전체 session.update로 대체됩니다.
 장기 API 키를 앱에 추가하거나 Firebase 인증·App Check·발급 한도를 완화하지 않았습니다.
 20초 발급 간격은 그대로이므로 캐릭터 변경 후 너무 빨리 새 대화를 시작하면 잠시 기다려야 합니다.
+대기 중에는 다음 시작까지 남은 시간을 표시하고 시작/인증 테스트 버튼을 비활성화합니다.
+서버는 제한 종류와 정확한 재시도 시간을 반환하여 하루 한도와 짧은 간격 제한을 구분합니다.
 
 ## 생성·수정 파일
 

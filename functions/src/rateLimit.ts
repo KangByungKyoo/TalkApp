@@ -16,9 +16,17 @@ export function nextCounter(previous: Partial<Counter> | undefined, now: number,
   const day = Math.floor(now / 86_400_000);
   const minuteCount = previous?.minute === minute ? previous.minuteCount ?? 0 : 0;
   const dayCount = previous?.day === day ? previous.dayCount ?? 0 : 0;
-  if ((previous?.lastAttempt !== undefined && now - previous.lastAttempt < cooldownMs) ||
-      minuteCount >= minuteLimit || dayCount >= dayLimit) {
-    throw new HttpsError("resource-exhausted", "Session request limit reached.");
+  const waits = [
+    { period: "interval", milliseconds: previous?.lastAttempt === undefined ? 0 : cooldownMs - (now - previous.lastAttempt) },
+    { period: "minute", milliseconds: minuteCount >= minuteLimit ? (minute + 1) * 60_000 - now : 0 },
+    { period: "day", milliseconds: dayCount >= dayLimit ? (day + 1) * 86_400_000 - now : 0 }
+  ];
+  const wait = waits.reduce((longest, candidate) => candidate.milliseconds > longest.milliseconds ? candidate : longest);
+  if (wait.milliseconds > 0) {
+    throw new HttpsError("resource-exhausted", "Session request limit reached.", {
+      source: "session-limit", limitPeriod: wait.period,
+      retryAfterSeconds: Math.ceil(wait.milliseconds / 1000)
+    });
   }
   return { minute, minuteCount: minuteCount + 1, day, dayCount: dayCount + 1, lastAttempt: now };
 }

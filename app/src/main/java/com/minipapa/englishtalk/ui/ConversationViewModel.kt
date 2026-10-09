@@ -11,6 +11,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.delay
 import com.minipapa.englishtalk.voice.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +29,19 @@ class ConversationViewModel(
     val uiState = _uiState.asStateFlow()
     private var connectionJob: Job? = null
     private var connectionGeneration = 0
+    private var cooldownJob: Job? = null
+
+    private fun startCooldown(seconds: Long = 20) {
+        cooldownJob?.cancel()
+        _uiState.value = _uiState.value.copy(sessionCooldownSeconds = seconds.coerceIn(1, 86_400))
+        cooldownJob = viewModelScope.launch {
+            while (_uiState.value.sessionCooldownSeconds > 0) {
+                val step = if (_uiState.value.sessionCooldownSeconds > 3600) 60L else 1L
+                delay(step * 1000)
+                _uiState.value = _uiState.value.copy(sessionCooldownSeconds = (_uiState.value.sessionCooldownSeconds - step).coerceAtLeast(0))
+            }
+        }
+    }
 
     init {
         if (settingsRepository != null) {
@@ -81,7 +95,8 @@ class ConversationViewModel(
     }
 
     fun testServerConnection() {
-        if (!_uiState.value.settingsLoaded || _uiState.value.settingsSaving || _uiState.value.isActive || _uiState.value.serverTestStatus == ServerTestStatus.LOADING) return
+        if (_uiState.value.sessionCooldownSeconds > 0 || !_uiState.value.settingsLoaded || _uiState.value.settingsSaving || _uiState.value.isActive || _uiState.value.serverTestStatus == ServerTestStatus.LOADING) return
+        startCooldown()
         _uiState.value = _uiState.value.copy(
             serverTestStatus = ServerTestStatus.LOADING,
             serverTestMessage = "Firebase 로그인 및 OpenAI 임시 인증 요청 중…"
@@ -89,6 +104,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             try {
                 val credentials = sessionRepository.createSession()
+                startCooldown()
                 // Stage 2 test only: discard the token; never put it in UI state or storage.
                 _uiState.value = _uiState.value.copy(
                     serverTestStatus = ServerTestStatus.SUCCESS,
@@ -97,6 +113,7 @@ class ConversationViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: SessionCreationException) {
+                startCooldown(e.retryAfterSeconds ?: 20)
                 _uiState.value = _uiState.value.copy(serverTestStatus = ServerTestStatus.ERROR, serverTestMessage = "인증 실패 · ${e.userMessage}")
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(serverTestStatus = ServerTestStatus.ERROR, serverTestMessage = "인증 실패 · 서버에 연결할 수 없습니다.")
@@ -105,7 +122,8 @@ class ConversationViewModel(
     }
 
     fun startConversation() {
-        if (!_uiState.value.settingsLoaded || _uiState.value.settingsSaving || _uiState.value.isActive || _uiState.value.serverTestStatus == ServerTestStatus.LOADING) return
+        if (_uiState.value.sessionCooldownSeconds > 0 || !_uiState.value.settingsLoaded || _uiState.value.settingsSaving || _uiState.value.isActive || _uiState.value.serverTestStatus == ServerTestStatus.LOADING) return
+        startCooldown()
         val id = ++connectionGeneration
         _uiState.value = _uiState.value.copy(status = ConversationStatus.CONNECTING, errorMessage = null,
             settingsApplying = true, settingsNotice = null, appliedSettings = null, inputTokens = 0, outputTokens = 0)
@@ -114,6 +132,7 @@ class ConversationViewModel(
                 val client = voiceClient ?: throw VoiceConnectionException("음성 연결이 초기화되지 않았습니다.")
                 withTimeout(50_000) {
                     val credentials = sessionRepository.createSession()
+                    startCooldown()
                     if (id != connectionGeneration) return@withTimeout
                     client.connect(credentials, _uiState.value.settings) { event ->
                         viewModelScope.launch { if (id == connectionGeneration) onVoiceEvent(event) }
@@ -124,7 +143,10 @@ class ConversationViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: SessionCreationException) {
-                if (id == connectionGeneration) failConversation(e.userMessage)
+                if (id == connectionGeneration) {
+                    startCooldown(e.retryAfterSeconds ?: 20)
+                    failConversation(e.userMessage)
+                }
             } catch (e: VoiceConnectionException) {
                 if (id == connectionGeneration) failConversation(e.userMessage)
             } catch (_: Exception) {

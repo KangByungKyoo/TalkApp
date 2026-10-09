@@ -18,7 +18,21 @@ class SessionCredentials(
     override fun toString(): String = "SessionCredentials([REDACTED])"
 }
 
-class SessionCreationException(val userMessage: String) : Exception(userMessage)
+class SessionCreationException(val userMessage: String, val retryAfterSeconds: Long? = null) : Exception(userMessage)
+
+fun sessionLimitFailure(details: Any?): SessionCreationException {
+    val values = details as? Map<*, *>
+    if (values?.get("source") != "session-limit") {
+        return SessionCreationException("서버 또는 OpenAI의 요청 한도에 도달했습니다. 사용량과 잠시 후 재시도를 확인해 주세요.")
+    }
+    val wait = (values["retryAfterSeconds"] as? Number)?.toLong()?.coerceIn(1, 86_400) ?: 20
+    val message = when (values["limitPeriod"]) {
+        "day" -> "오늘의 세션 발급 한도에 도달했습니다. 약 ${(wait + 3599) / 3600}시간 후 다시 시도해 주세요."
+        "minute" -> "분당 세션 발급 한도에 도달했습니다. ${wait}초 후 다시 시도해 주세요."
+        else -> "세션은 20초 간격으로 시작할 수 있습니다. ${wait}초 후 다시 시도해 주세요."
+    }
+    return SessionCreationException(message, wait)
+}
 
 fun parseSessionResponse(data: Any?, elapsedSeconds: Long): SessionCredentials {
     val result = data as? Map<*, *> ?: throw SessionCreationException("서버 응답 형식이 올바르지 않습니다.")

@@ -24,6 +24,7 @@ data class ConversationUiState(
     val appliedSettings: ConversationSettings? = null,
     val inputTokens: Long = 0,
     val outputTokens: Long = 0,
+    val sessionCooldownSeconds: Long = 0,
     val status: ConversationStatus = ConversationStatus.DISCONNECTED,
     val errorMessage: String? = null,
     val voiceActivity: VoiceActivity = VoiceActivity.LISTENING,

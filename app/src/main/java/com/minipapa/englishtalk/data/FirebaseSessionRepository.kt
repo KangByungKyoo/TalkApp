@@ -35,10 +35,10 @@ class FirebaseSessionRepository : SessionRepository {
         } catch (e: SessionCreationException) {
             throw e
         } catch (e: FirebaseFunctionsException) {
+            if (e.code == FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED) throw sessionLimitFailure(e.details)
             val message = when (e.code) {
                 FirebaseFunctionsException.Code.UNAUTHENTICATED -> "인증 또는 App Check 검증에 실패했습니다. Firebase 설정을 확인해 주세요."
                 FirebaseFunctionsException.Code.PERMISSION_DENIED -> "이 앱의 요청이 허용되지 않았습니다. App Check 설정을 확인해 주세요."
-                FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED -> "세션 요청 한도를 초과했습니다. 잠시 후 다시 시도해 주세요."
                 FirebaseFunctionsException.Code.FAILED_PRECONDITION -> "서버 API 키 또는 모델 설정을 확인해야 합니다."
                 FirebaseFunctionsException.Code.UNAVAILABLE, FirebaseFunctionsException.Code.DEADLINE_EXCEEDED -> "서버 또는 OpenAI에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
                 else -> "세션 생성에 실패했습니다. 서버 배포와 설정을 확인해 주세요."

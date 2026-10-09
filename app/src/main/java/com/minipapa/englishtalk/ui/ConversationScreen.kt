@@ -28,7 +28,10 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
     Scaffold(
         bottomBar = {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onStart, enabled = state.settingsLoaded && !state.settingsSaving && !state.isActive && state.serverTestStatus != ServerTestStatus.LOADING, modifier = Modifier.fillMaxWidth()) { Text("대화 시작") }
+                if (state.sessionCooldownSeconds > 0 && !state.isActive) Text(
+                    if (state.sessionCooldownSeconds > 3600) "세션 한도 갱신까지 약 ${(state.sessionCooldownSeconds + 3599) / 3600}시간" else "다음 대화 시작까지 ${state.sessionCooldownSeconds}초",
+                    style = MaterialTheme.typography.bodySmall)
+                Button(onClick = onStart, enabled = state.sessionCooldownSeconds == 0L && state.settingsLoaded && !state.settingsSaving && !state.isActive && state.serverTestStatus != ServerTestStatus.LOADING, modifier = Modifier.fillMaxWidth()) { Text("대화 시작") }
                 OutlinedButton(onClick = onEnd, enabled = state.isActive, modifier = Modifier.fillMaxWidth()) { Text("대화 종료") }
             }
         }
@@ -78,7 +81,7 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
                 color = if (state.serverTestStatus == ServerTestStatus.ERROR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(12.dp))
             if (state.serverTestStatus == ServerTestStatus.LOADING) CircularProgressIndicator()
-            OutlinedButton(onClick = onTestServer, enabled = state.settingsLoaded && !state.settingsSaving && !state.isActive && state.serverTestStatus != ServerTestStatus.LOADING) {
+            OutlinedButton(onClick = onTestServer, enabled = state.sessionCooldownSeconds == 0L && state.settingsLoaded && !state.settingsSaving && !state.isActive && state.serverTestStatus != ServerTestStatus.LOADING) {
                 Text("서버 연결 테스트")
             }
             Spacer(Modifier.weight(1f))

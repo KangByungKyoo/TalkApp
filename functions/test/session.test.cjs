@@ -64,3 +64,13 @@ test('limits attempts, resets time buckets, preserves cooldown across minute bou
   assert.throws(() => nextCounter({ ...next, dayCount: 20 }, 120_000, 3, 20, 0), expectCode('resource-exhausted'));
   assert.equal(nextCounter({ ...next, dayCount: 20 }, 86_400_000, 3, 20, 0).dayCount, 1);
 });
+
+test('rate-limit errors include exact retry time and limiting period', () => {
+  const first = nextCounter(undefined, 50_000, 3, 20, 20_000);
+  assert.throws(() => nextCounter(first, 60_000, 3, 20, 20_000), error =>
+    error.details.source === 'session-limit' && error.details.limitPeriod === 'interval' && error.details.retryAfterSeconds === 10);
+  assert.throws(() => nextCounter({ ...first, minute: 1, minuteCount: 3 }, 90_000, 3, 20, 0), error =>
+    error.details.limitPeriod === 'minute' && error.details.retryAfterSeconds === 30);
+  assert.throws(() => nextCounter({ ...first, dayCount: 20 }, 120_000, 3, 20, 0), error =>
+    error.details.limitPeriod === 'day' && error.details.retryAfterSeconds === 86280);
+});
