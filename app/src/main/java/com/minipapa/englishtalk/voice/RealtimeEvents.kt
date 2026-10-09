@@ -44,7 +44,26 @@ object RealtimeEvents {
                 VoiceEvent.Error("AI 음성 응답 생성에 실패했습니다. 연결을 다시 시작해 주세요.")
             } else {
                 val usage = event.optJSONObject("response")?.optJSONObject("usage")
-                usage?.let { VoiceEvent.Usage(it.optInt("input_tokens").coerceAtLeast(0), it.optInt("output_tokens").coerceAtLeast(0)) }
+                usage?.let {
+                    val input = it.optJSONObject("input_token_details")
+                    val output = it.optJSONObject("output_token_details")
+                    val cached = input?.optJSONObject("cached_tokens_details")
+                    val inputCount = it.optInt("input_tokens").coerceAtLeast(0)
+                    val outputCount = it.optInt("output_tokens").coerceAtLeast(0)
+                    val details = if (input != null && output != null &&
+                        input.has("text_tokens") && input.has("audio_tokens") &&
+                        output.has("text_tokens") && output.has("audio_tokens") &&
+                        (input.optInt("cached_tokens") == 0 || cached != null) &&
+                        (cached?.optInt("text_tokens") ?: 0).toLong() + (cached?.optInt("audio_tokens") ?: 0) == input.optInt("cached_tokens").toLong() &&
+                        input.optInt("text_tokens").toLong() + input.optInt("audio_tokens") == inputCount.toLong() &&
+                        output.optInt("text_tokens").toLong() + output.optInt("audio_tokens") == outputCount.toLong()) {
+                        TokenBreakdown(input.optInt("text_tokens"), input.optInt("audio_tokens"),
+                            cached?.optInt("text_tokens") ?: 0, cached?.optInt("audio_tokens") ?: 0,
+                            output.optInt("text_tokens"), output.optInt("audio_tokens"))
+                    } else null
+                    VoiceEvent.Usage(inputCount, outputCount, details,
+                        event.optJSONObject("response")?.optString("id").orEmpty())
+                }
             } // Generation can finish before buffered audio finishes playing.
             "error" -> if (event.optJSONObject("error")?.optString("event_id")?.startsWith("settings-cancel-") == true) {
                 null // Cancelling a response that has already ended is harmless.

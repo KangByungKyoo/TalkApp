@@ -5,7 +5,7 @@
 기존 Firebase 인증·WebRTC 음성 대화·서버 테스트·종료 처리를 유지하면서
 캐릭터 3명과 답변 길이 3종을 독립적으로 선택하는 기능을 추가했습니다.
 기본값은 Emma + SHORT입니다. Preferences DataStore에 캐릭터 ID와 답변 길이 ID를 저장합니다.
-이 변경은 기존 `gpt-realtime` 모델과 서버 발급 함수를 사용합니다.
+이 변경은 기존 `gpt-realtime-2.1-mini` 모델과 서버 발급 함수를 사용합니다.
 
 ## 캐릭터 설정
 

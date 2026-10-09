@@ -28,6 +28,34 @@ class VoiceConversationTest {
         override suspend fun createSession() = SessionCredentials("test-only", 1060, 58, "gpt-realtime")
     }
 
+    @Test fun accumulatesCostOncePerResponseAndResetsForNewConversation() = runTest(dispatcher) {
+        val voice = FakeVoice()
+        val repo = object : SessionRepository {
+            override suspend fun createSession() = SessionCredentials("test-only", 1060, 58, "gpt-realtime-2.1-mini")
+        }
+        val model = ConversationViewModel(repo, voice)
+        model.startConversation()
+        advanceUntilIdle()
+        val usage = VoiceEvent.Usage(3000, 400, TokenBreakdown(1000, 2000, 500, 1000, 100, 300), "response-1")
+        voice.callback!!(usage)
+        voice.callback!!(usage)
+        voice.callback!!(usage.copy(responseId = "response-2"))
+        advanceUntilIdle()
+        assertEquals(6000L, model.uiState.value.inputTokens)
+        assertEquals(800L, model.uiState.value.outputTokens)
+        assertEquals(0.03374, model.uiState.value.estimatedCostUsd, 1e-10)
+        model.endConversation()
+        assertEquals(0.03374, model.uiState.value.estimatedCostUsd, 1e-10)
+        model.startConversation()
+        advanceUntilIdle()
+        assertEquals(0L, model.uiState.value.inputTokens)
+        assertEquals(0.0, model.uiState.value.estimatedCostUsd, 0.0)
+        voice.callback!!(VoiceEvent.Usage(10, 5))
+        advanceUntilIdle()
+        assertFalse(model.uiState.value.costDetailsComplete)
+        model.endConversation()
+    }
+
     @Test fun staysConnectingUntilNativeConnectionAndDataChannelReady() = runTest(dispatcher) {
         val voice = FakeVoice()
         val model = ConversationViewModel(repository(), voice)

@@ -30,6 +30,7 @@ class ConversationViewModel(
     private var connectionJob: Job? = null
     private var connectionGeneration = 0
     private var cooldownJob: Job? = null
+    private val countedResponses = mutableSetOf<String>()
 
     private fun startCooldown(seconds: Long = 20) {
         cooldownJob?.cancel()
@@ -125,8 +126,10 @@ class ConversationViewModel(
         if (_uiState.value.sessionCooldownSeconds > 0 || !_uiState.value.settingsLoaded || _uiState.value.settingsSaving || _uiState.value.isActive || _uiState.value.serverTestStatus == ServerTestStatus.LOADING) return
         startCooldown()
         val id = ++connectionGeneration
+        countedResponses.clear()
         _uiState.value = _uiState.value.copy(status = ConversationStatus.CONNECTING, errorMessage = null,
-            settingsApplying = true, settingsNotice = null, appliedSettings = null, inputTokens = 0, outputTokens = 0)
+            settingsApplying = true, settingsNotice = null, appliedSettings = null, inputTokens = 0, outputTokens = 0,
+            usageModel = null, estimatedCostUsd = 0.0, costDetailsComplete = true)
         connectionJob = viewModelScope.launch {
             try {
                 val client = voiceClient ?: throw VoiceConnectionException("음성 연결이 초기화되지 않았습니다.")
@@ -134,6 +137,7 @@ class ConversationViewModel(
                     val credentials = sessionRepository.createSession()
                     startCooldown()
                     if (id != connectionGeneration) return@withTimeout
+                    _uiState.value = _uiState.value.copy(usageModel = credentials.model)
                     client.connect(credentials, _uiState.value.settings) { event ->
                         viewModelScope.launch { if (id == connectionGeneration) onVoiceEvent(event) }
                     }
@@ -178,9 +182,15 @@ class ConversationViewModel(
                 _uiState.value = _uiState.value.copy(settingsApplying = false, appliedSettings = event.settings)
             }
             is VoiceEvent.SessionConfiguration -> Unit // Consumed by the transport before the public callback.
-            is VoiceEvent.Usage -> _uiState.value = _uiState.value.copy(
-                inputTokens = _uiState.value.inputTokens + event.inputTokens,
-                outputTokens = _uiState.value.outputTokens + event.outputTokens)
+            is VoiceEvent.Usage -> {
+                if (event.responseId.isNotEmpty() && !countedResponses.add(event.responseId)) return
+                val cost = RealtimeCost.estimateUsd(_uiState.value.usageModel, event.breakdown)
+                _uiState.value = _uiState.value.copy(
+                    inputTokens = _uiState.value.inputTokens + event.inputTokens,
+                    outputTokens = _uiState.value.outputTokens + event.outputTokens,
+                    estimatedCostUsd = _uiState.value.estimatedCostUsd + (cost ?: 0.0),
+                    costDetailsComplete = _uiState.value.costDetailsComplete && cost != null)
+            }
             is VoiceEvent.Error -> failConversation(event.message)
         }
     }

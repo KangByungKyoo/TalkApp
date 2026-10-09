@@ -19,7 +19,7 @@ test('requires sign-in, correct attested app, unused token and empty data', () =
 });
 
 test('uses official client_secrets schema and returns only temporary auth data', async () => {
-  const result = await mintClientSecret('test-only-placeholder', 'gpt-realtime', 'test-user', async (url, options) => {
+  const result = await mintClientSecret('test-only-placeholder', 'gpt-realtime-2.1-mini', 'test-user', async (url, options) => {
     assert.equal(url, 'https://api.openai.com/v1/realtime/client_secrets');
     assert.equal(options.method, 'POST');
     assert.equal(options.headers.Authorization, 'Bearer test-only-placeholder');
@@ -27,16 +27,16 @@ test('uses official client_secrets schema and returns only temporary auth data',
     const body = JSON.parse(options.body);
     assert.deepEqual(body.expires_after, { anchor: 'created_at', seconds: 60 });
     assert.equal(body.session.type, 'realtime');
-    assert.equal(body.session.model, 'gpt-realtime');
-    return Response.json({ value: 'test-ephemeral', expires_at: 1060, session: { model: 'gpt-realtime' }, ignored: 'private' });
+    assert.equal(body.session.model, 'gpt-realtime-2.1-mini');
+    return Response.json({ value: 'test-ephemeral', expires_at: 1060, session: { model: 'gpt-realtime-2.1-mini' }, ignored: 'private' });
   }, () => 1000);
-  assert.deepEqual(result, { clientSecret: 'test-ephemeral', expiresAt: 1060, serverTime: 1000, model: 'gpt-realtime' });
+  assert.deepEqual(result, { clientSecret: 'test-ephemeral', expiresAt: 1060, serverTime: 1000, model: 'gpt-realtime-2.1-mini' });
 });
 
 test('maps upstream HTTP errors without forwarding raw bodies', async () => {
   for (const [status, code] of [[400, 'failed-precondition'], [401, 'failed-precondition'],
     [403, 'failed-precondition'], [404, 'failed-precondition'], [429, 'resource-exhausted'], [500, 'unavailable']]) {
-    await assert.rejects(mintClientSecret('test-only', 'gpt-realtime', 'user', async () =>
+    await assert.rejects(mintClientSecret('test-only', 'gpt-realtime-2.1-mini', 'user', async () =>
       new Response('sensitive upstream body', { status })), error =>
       error.code === code && !error.message.includes('sensitive'));
   }

@@ -71,7 +71,13 @@ fun ConversationScreen(state: ConversationUiState, onStart: () -> Unit, onEnd: (
             }
             Spacer(Modifier.height(20.dp))
             Text("대화 중 마이크 음성이 OpenAI로 전송되고 AI 친구의 음성이 스피커로 재생됩니다. 앱을 벗어나면 대화가 종료됩니다.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-            if (state.inputTokens + state.outputTokens > 0) Text("이번 대화 사용량 · 입력 ${state.inputTokens} / 출력 ${state.outputTokens} 토큰", style = MaterialTheme.typography.bodySmall)
+            Text("이번 대화 누적 · ${state.inputTokens + state.outputTokens} 토큰", style = MaterialTheme.typography.bodyMedium)
+            Text("입력 ${state.inputTokens} / 출력 ${state.outputTokens} 토큰", style = MaterialTheme.typography.bodySmall)
+            Text(if (state.costDetailsComplete)
+                "예상 비용 · $" + String.format(java.util.Locale.US, "%.6f", state.estimatedCostUsd) + " USD"
+                else "예상 비용 · 상세 사용량 부족으로 계산 불가", style = MaterialTheme.typography.bodyMedium)
+            Text("AI 응답 완료 시 갱신 · 새 대화 시작 시 초기화\nOpenAI 예상 비용이며 Firebase 요금은 별도입니다.",
+                style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))

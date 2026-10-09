@@ -21,7 +21,7 @@
 
 현재 발급 요청은 GA `POST https://api.openai.com/v1/realtime/client_secrets`이며,
 `expires_after: { anchor: "created_at", seconds: 60 }`와
-`session: { type: "realtime", model: "gpt-realtime", audio: { output: { voice: "marin" } } }`를 보냅니다.
+`session: { type: "realtime", model: "gpt-realtime-2.1-mini", audio: { output: { voice: "marin" } } }`를 보냅니다.
 구형 `/realtime/sessions` 또는 beta 헤더를 사용하지 않습니다.
 모델은 서버 설정 `OPENAI_REALTIME_MODEL`로 변경할 수 있습니다. 실제 계정의 모델 접근 권한을 확인하세요.
 
@@ -146,7 +146,7 @@ Functions 런타임은 Node 22입니다. 개발 PC에 Node 24만 있다면 Node 
 
 ```text
 ALLOWED_ANDROID_APP_ID=test-only-app
-OPENAI_REALTIME_MODEL=gpt-realtime
+OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini
 ```
 이 두 파일은 Git에서 제외됩니다. demo 프로젝트에서는 실제 Firebase 리소스를 사용하지 않습니다.
 

@@ -8,7 +8,7 @@ import { mintClientSecret, validateRequest } from "./session";
 initializeApp();
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 const androidAppId = defineString("ALLOWED_ANDROID_APP_ID");
-const realtimeModel = defineString("OPENAI_REALTIME_MODEL", { default: "gpt-realtime" });
+const realtimeModel = defineString("OPENAI_REALTIME_MODEL", { default: "gpt-realtime-2.1-mini" });
 
 export const createRealtimeSession = onCall({
   region: "asia-northeast3",
